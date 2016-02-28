@@ -12,6 +12,59 @@ The aim of this project is to predict (*classify*) the manner in which subjects 
 ##Data cleaning
 Since both datasets contained many redundant columns containing little to no information (either "NA" vlaues or empty cells), these were removed to make the analysis and model fitting easier.
 
-```{r}
+```{r, cache=TRUE}
+#Load the data
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
 
+#Select complete columns
+na.prop <- function(x){sum(is.na(x))/length(x)*100}
+cols_prop <- sapply(training, na.prop)
+col_names <- names(cols_prop[(cols_prop < 10)])
+
+#Check number of "NA" values
+sum(is.na(training[,col_names]))
+
+training <- training[,col_names]
+```
+
+As it can be seen, there are no "NA" values left, which is a good sign.
+
+Now, let's remove all empty values:
+```{r, cache=TRUE}
+#Select columns with no empty values (not the same as NA!)
+prop.empty <- function(x){sum(x == "")/length(x)*100}
+cols_prop <- sapply(training, prop.empty)
+col_names <- names(cols_prop[cols_prop < 10])
+
+#Check the number of empty cells
+sum((sapply(training[,col_names], prop.empty) > 0))
+training <- training[,col_names]
+```
+
+Again, there are no empty values left, so let's proceed to clean testing dataset using the same approach:
+
+```{r, cache=TRUE}
+#Select complete columns
+na.prop <- function(x){sum(is.na(x))/length(x)*100}
+cols_prop <- sapply(testing, na.prop)
+col_names <- names(cols_prop[(cols_prop < 10)])
+
+#Check number of "NA" values
+sum(is.na(testing[,col_names]))
+
+testing <- testing[,col_names]
+
+#Select columns with no empty values (not the same as NA!)
+prop.empty <- function(x){sum(x == "")/length(x)*100}
+cols_prop <- sapply(testing, prop.empty)
+col_names <- names(cols_prop[cols_prop < 10])
+
+#Check the number of empty cells
+sum((sapply(testing[,col_names], prop.empty) > 0))
+testing <- testing[,col_names]
+
+#Remove "X" col
+training <- training[,-c(1:5)]
+testing <- testing[,-c(1:5)]
 ```

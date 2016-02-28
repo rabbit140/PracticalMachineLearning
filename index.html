@@ -118,7 +118,62 @@ $(document).ready(function () {
 
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
-<p>The aim of this project is to predict (<em>classify</em>) the manner in which subjects of <a href="http://groupware.les.inf.puc-rio.br/har">a study</a> exercised.</p>
+<p>The aim of this project is to predict (<em>classify</em>) the manner in which subjects of <a href="http://groupware.les.inf.puc-rio.br/har">a study</a> exercised. To accomplish this, a model selection procedure was utilised and the best model was selected according to its accuracy.</p>
+</div>
+<div id="analysis" class="section level1">
+<h1>Analysis</h1>
+<div id="data-cleaning" class="section level2">
+<h2>Data cleaning</h2>
+<p>Since both datasets contained many redundant columns containing little to no information (either “NA” vlaues or empty cells), these were removed to make the analysis and model fitting easier.</p>
+<pre class="r"><code>#Load the data
+training &lt;- read.csv(&quot;pml-training.csv&quot;)
+testing &lt;- read.csv(&quot;pml-testing.csv&quot;)
+
+#Select complete columns
+na.prop &lt;- function(x){sum(is.na(x))/length(x)*100}
+cols_prop &lt;- sapply(training, na.prop)
+col_names &lt;- names(cols_prop[(cols_prop &lt; 10)])
+
+#Check number of &quot;NA&quot; values
+sum(is.na(training[,col_names]))</code></pre>
+<pre><code>## [1] 0</code></pre>
+<pre class="r"><code>training &lt;- training[,col_names]</code></pre>
+<p>As it can be seen, there are no “NA” values left, which is a good sign.</p>
+<p>Now, let’s remove all empty values:</p>
+<pre class="r"><code>#Select columns with no empty values (not the same as NA!)
+prop.empty &lt;- function(x){sum(x == &quot;&quot;)/length(x)*100}
+cols_prop &lt;- sapply(training, prop.empty)
+col_names &lt;- names(cols_prop[cols_prop &lt; 10])
+
+#Check the number of empty cells
+sum((sapply(training[,col_names], prop.empty) &gt; 0))</code></pre>
+<pre><code>## [1] 0</code></pre>
+<pre class="r"><code>training &lt;- training[,col_names]</code></pre>
+<p>Again, there are no empty values left, so let’s proceed to clean testing dataset using the same approach:</p>
+<pre class="r"><code>#Select complete columns
+na.prop &lt;- function(x){sum(is.na(x))/length(x)*100}
+cols_prop &lt;- sapply(testing, na.prop)
+col_names &lt;- names(cols_prop[(cols_prop &lt; 10)])
+
+#Check number of &quot;NA&quot; values
+sum(is.na(testing[,col_names]))</code></pre>
+<pre><code>## [1] 0</code></pre>
+<pre class="r"><code>testing &lt;- testing[,col_names]
+
+#Select columns with no empty values (not the same as NA!)
+prop.empty &lt;- function(x){sum(x == &quot;&quot;)/length(x)*100}
+cols_prop &lt;- sapply(testing, prop.empty)
+col_names &lt;- names(cols_prop[cols_prop &lt; 10])
+
+#Check the number of empty cells
+sum((sapply(testing[,col_names], prop.empty) &gt; 0))</code></pre>
+<pre><code>## [1] 0</code></pre>
+<pre class="r"><code>testing &lt;- testing[,col_names]
+
+#Remove &quot;X&quot; col
+training &lt;- training[,-c(1:5)]
+testing &lt;- testing[,-c(1:5)]</code></pre>
+</div>
 </div>
 
 
