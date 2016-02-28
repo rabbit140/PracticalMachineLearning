@@ -6,7 +6,11 @@ output: html_document
 ---
 
 #Introduction
-The aim of this project is to predict the manner in which subjects of [a study](http://groupware.les.inf.puc-rio.br/har) exercised. 
+The aim of this project is to predict (*classify*) the manner in which subjects of [a study](http://groupware.les.inf.puc-rio.br/har) exercised. To accomplish this, a model selection procedure was utilised and the best model was selected according to its accuracy.
+
+#Analysis
+##Data cleaning
+Since both datasets contained many redundant columns containing little to no information (either "NA" vlaues or empty cells), these were removed to make the analysis and model fitting easier.
 
 ```{r}
 
