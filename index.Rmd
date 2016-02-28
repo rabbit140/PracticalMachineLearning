@@ -9,14 +9,19 @@ output: html_document
 The aim of this project is to predict (*classify*) the manner in which subjects of [a study](http://groupware.les.inf.puc-rio.br/har) exercised. To accomplish this, a model selection procedure was utilised and the best model was selected according to its accuracy.
 
 #Background
-Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website [here](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset).
+Using devices such as *Jawbone Up*, *Nike FuelBand*, and *Fitbit* it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website [here](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset).
 
 #Analysis
 
 ###Data cleaning
 Since both datasets contained many redundant columns containing little to no information (either "NA" vlaues or empty cells), these were removed to make the analysis and model fitting easier.
 
-```{r, cache=TRUE}
+```{r, cache=FALSE,results='hide', warning=FALSE, message=FALSE, error=FALSE}
+library(rattle)
+library(caret)
+library(randomForest)
+```
+```{r,cache=TRUE}
 #Load the data
 training <- read.csv("pml-training.csv")
 testing <- read.csv("pml-testing.csv")
@@ -24,6 +29,7 @@ testing <- read.csv("pml-testing.csv")
 #Select complete columns
 na.prop <- function(x){sum(is.na(x))/length(x)*100}
 cols_prop <- sapply(training, na.prop)
+#Threshold of incompleteness: 10%
 col_names <- names(cols_prop[(cols_prop < 10)])
 
 #Check number of "NA" values
@@ -39,6 +45,7 @@ Now, let's remove all empty values:
 #Select columns with no empty values (not the same as NA!)
 prop.empty <- function(x){sum(x == "")/length(x)*100}
 cols_prop <- sapply(training, prop.empty)
+#Threshold of incompleteness: 10%
 col_names <- names(cols_prop[cols_prop < 10])
 
 #Check the number of empty cells
@@ -76,8 +83,7 @@ testing <- testing[,-c(1:5)]
 ###Variable selection and splitting the data
 
 Let's now remove any near-zero variance predictors:
-```{r}
-library(caret)
+```{r,cache=TRUE}
 nearZeroVar(training)
 nearZeroVar(testing)
 training <- training[,-nearZeroVar(training)]
@@ -87,8 +93,8 @@ testing <- testing[,-nearZeroVar(testing)]
 The first column in both datasets was identified as being a near-zero variance predictor, which, even purely by visual inspection, looks correct. Therefore, it was removed and the remaining predictors were used.
 
 Now, all the data is ready to be split into training and validation sets. To ensure reproducibility, the seed was set to 1:
-```{r}
-#Split data into train and test sets
+```{r,cache=TRUE}
+#Split data into train and test sets (66:34 split)
 set.seed(1)
 train_rows <- sample(1:nrow(training), size = 2/3*nrow(training))
 train_data <- training[train_rows,]
@@ -111,14 +117,18 @@ total combinations, which would be extremely expensive computationally, dependin
 
 ###Classification tree
 ```{r,cache=TRUE}
-library(rattle)
 class.tree <- train(classe~., data = train_data, method = "rpart")
 confusionMatrix(test_data$classe, predict(class.tree, test_data))
 ```
+The overall accuracy is quite low (~50%) and the Kappa statistic is ~37%. Let's tryfittin a random forest:
 
 ###Random forest
-The model fitting command was run, but after 30 minutes of fitting the random forest, it was halted by the user as itwas concluded that fitting it was too demanding for an i3-4010U mobile CPU.
-The overall accuracy is quite low (~50%), let's try fitting a random forest:
+```{r,cache=TRUE}
+forest.fit <- randomForest(classe~., data = train_data)
+confusionMatrix(test_data$classe, predict(forest.fit, test_data))
+```
+
+Clearly, this model is extremely accurate as assessed on test data, with overall accuracy and Kappa statistic both being close to 100%.
 
 ###Boosting
 Unfortunately, boosting could not be used due to computational limitations of the CPU, and after half an hour the execution of code was stopped.
@@ -131,7 +141,7 @@ lda.fit <- train(classe~., data = train_data, method = "lda")
 confusionMatrix(test_data$classe, predict(lda.fit, test_data))
 ```
 
-The accuracy seems to have improved by over 20% in comparison to classification tree.
+The accuracy seems to have improved by over 20% and Kappa statistic raised by almost 30% in comparison to the classification tree.
 
 ###QDA
 Now, fit a QDA model:
@@ -140,4 +150,12 @@ qda.fit <- train(classe~., data = train_data, method = "qda")
 confusionMatrix(test_data$classe, predict(qda.fit, test_data))
 ```
 
-Fitting a QDA model resulted in further 20% accuracy improvement, giving a total of 40% better accuracy than a classification tree. It is thus clear that QDA should be used to make predictions on the test data.
+Fitting a QDA model resulted in further 20% accuracy improvement and a roughly 25% increase in Kappa statistic, giving a total of 40% better accuracy and 50% higher Kappa statistic than a classification tree. For comparison purposes, it is better to look at Kappa statistic as it describes how closely the examples classified by a model match the *ground truth* data while controlling for the accuracy of a random classifier as measured by the *expected accuracy* (http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english). However, QDA did not improve over the random forest. Thus, for predicting exercise types random forest model will be used.
+
+#Prediction
+Let's now predict the cases for the "testing" dataset and evaluate the performance of the model by reporting the grade from the fial Quiz:
+```{r}
+predict(forest.fit, testing)
+```
+
+This submission gained a 100% mark, meaning that the classifier was indeed very accurate on unseen data.

@@ -122,13 +122,16 @@ $(document).ready(function () {
 </div>
 <div id="background" class="section level1">
 <h1>Background</h1>
-<p>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website <a href="http://groupware.les.inf.puc-rio.br/har">here</a> (see the section on the Weight Lifting Exercise Dataset).</p>
+<p>Using devices such as <em>Jawbone Up</em>, <em>Nike FuelBand</em>, and <em>Fitbit</em> it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website <a href="http://groupware.les.inf.puc-rio.br/har">here</a> (see the section on the Weight Lifting Exercise Dataset).</p>
 </div>
 <div id="analysis" class="section level1">
 <h1>Analysis</h1>
 <div id="data-cleaning" class="section level3">
 <h3>Data cleaning</h3>
 <p>Since both datasets contained many redundant columns containing little to no information (either “NA” vlaues or empty cells), these were removed to make the analysis and model fitting easier.</p>
+<pre class="r"><code>library(rattle)
+library(caret)
+library(randomForest)</code></pre>
 <pre class="r"><code>#Load the data
 training &lt;- read.csv(&quot;pml-training.csv&quot;)
 testing &lt;- read.csv(&quot;pml-testing.csv&quot;)
@@ -136,6 +139,7 @@ testing &lt;- read.csv(&quot;pml-testing.csv&quot;)
 #Select complete columns
 na.prop &lt;- function(x){sum(is.na(x))/length(x)*100}
 cols_prop &lt;- sapply(training, na.prop)
+#Threshold of incompleteness: 10%
 col_names &lt;- names(cols_prop[(cols_prop &lt; 10)])
 
 #Check number of &quot;NA&quot; values
@@ -147,6 +151,7 @@ sum(is.na(training[,col_names]))</code></pre>
 <pre class="r"><code>#Select columns with no empty values (not the same as NA!)
 prop.empty &lt;- function(x){sum(x == &quot;&quot;)/length(x)*100}
 cols_prop &lt;- sapply(training, prop.empty)
+#Threshold of incompleteness: 10%
 col_names &lt;- names(cols_prop[cols_prop &lt; 10])
 
 #Check the number of empty cells
@@ -181,17 +186,15 @@ testing &lt;- testing[,-c(1:5)]</code></pre>
 <div id="variable-selection-and-splitting-the-data" class="section level3">
 <h3>Variable selection and splitting the data</h3>
 <p>Let’s now remove any near-zero variance predictors:</p>
-<pre class="r"><code>library(caret)</code></pre>
-<pre><code>## Loading required package: lattice</code></pre>
-<pre><code>## Loading required package: ggplot2</code></pre>
 <pre class="r"><code>nearZeroVar(training)</code></pre>
 <pre><code>## [1] 1</code></pre>
 <pre class="r"><code>nearZeroVar(testing)</code></pre>
 <pre><code>## [1] 1</code></pre>
 <pre class="r"><code>training &lt;- training[,-nearZeroVar(training)]
 testing &lt;- testing[,-nearZeroVar(testing)]</code></pre>
+<p>The first column in both datasets was identified as being a near-zero variance predictor, which, even purely by visual inspection, looks correct. Therefore, it was removed and the remaining predictors were used.</p>
 <p>Now, all the data is ready to be split into training and validation sets. To ensure reproducibility, the seed was set to 1:</p>
-<pre class="r"><code>#Split data into train and test sets
+<pre class="r"><code>#Split data into train and test sets (66:34 split)
 set.seed(1)
 train_rows &lt;- sample(1:nrow(training), size = 2/3*nrow(training))
 train_data &lt;- training[train_rows,]
@@ -208,8 +211,7 @@ test_data &lt;- training[which(1:nrow(training) %in% train_rows == FALSE),]</cod
 <p>total combinations, which would be extremely expensive computationally, depending on the type of model fitted. Forward or backward stepwise selection could be considered less computationally expensive, although, with this number of variables, it would still take a long time to find the best model. Moreover, the “stepAIC” function is not compatible with models trained using the “caret” package and there are very limited options within the package to perform variable selection. Any regression method, such as ridge or lasso, cannot be applied since the task is to classify discrete values (classes A to E) and not continuous ones. Thus, we are left with classification trees (with bagging and boosting), random forest, or with LDA/QDA. Let’s select the type of model trained on all available variables and choose the best one based on overall accuracy.</p>
 <div id="classification-tree" class="section level3">
 <h3>Classification tree</h3>
-<pre class="r"><code>library(rattle)
-class.tree &lt;- train(classe~., data = train_data, method = &quot;rpart&quot;)
+<pre class="r"><code>class.tree &lt;- train(classe~., data = train_data, method = &quot;rpart&quot;)
 confusionMatrix(test_data$classe, predict(class.tree, test_data))</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
@@ -242,10 +244,44 @@ confusionMatrix(test_data$classe, predict(class.tree, test_data))</code></pre>
 ## Detection Rate         0.2570  0.06436  0.09326   0.0000   0.1069
 ## Detection Prevalence   0.2839  0.19217  0.18438   0.1628   0.1767
 ## Balanced Accuracy      0.7263  0.69660  0.62073       NA   0.9155</code></pre>
+<p>The overall accuracy is quite low (~50%) and the Kappa statistic is ~37%. Let’s tryfittin a random forest:</p>
 </div>
 <div id="random-forest" class="section level3">
 <h3>Random forest</h3>
-<p>The model fitting command was run, but after 30 minutes of fitting the random forest, it was halted by the user as itwas concluded that fitting it was too demanding for an i3-4010U mobile CPU. The overall accuracy is quite low (~50%), let’s try fitting a random forest:</p>
+<pre class="r"><code>forest.fit &lt;- randomForest(classe~., data = train_data)
+confusionMatrix(test_data$classe, predict(forest.fit, test_data))</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1855    1    0    0    1
+##          B    2 1254    1    0    0
+##          C    0    2 1204    0    0
+##          D    0    0    4 1061    0
+##          E    0    0    0    2 1154
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.998           
+##                  95% CI : (0.9966, 0.9989)
+##     No Information Rate : 0.2839          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.9975          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9989   0.9976   0.9959   0.9981   0.9991
+## Specificity            0.9996   0.9994   0.9996   0.9993   0.9996
+## Pos Pred Value         0.9989   0.9976   0.9983   0.9962   0.9983
+## Neg Pred Value         0.9996   0.9994   0.9991   0.9996   0.9998
+## Prevalence             0.2839   0.1922   0.1848   0.1625   0.1766
+## Detection Rate         0.2836   0.1917   0.1841   0.1622   0.1764
+## Detection Prevalence   0.2839   0.1922   0.1844   0.1628   0.1767
+## Balanced Accuracy      0.9992   0.9985   0.9977   0.9987   0.9994</code></pre>
+<p>Clearly, this model is extremely accurate as assessed on test data, with overall accuracy and Kappa statistic both being close to 100%.</p>
 </div>
 <div id="boosting" class="section level3">
 <h3>Boosting</h3>
@@ -287,7 +323,7 @@ confusionMatrix(test_data$classe, predict(lda.fit, test_data))</code></pre>
 ## Detection Rate         0.2360   0.1223   0.1225   0.1197   0.1119
 ## Detection Prevalence   0.2839   0.1922   0.1844   0.1628   0.1767
 ## Balanced Accuracy      0.8608   0.7987   0.7717   0.7894   0.8766</code></pre>
-<p>The accuracy seems to have improved by over 20% in comparison to classification tree.</p>
+<p>The accuracy seems to have improved by over 20% and Kappa statistic raised by almost 30% in comparison to the classification tree.</p>
 </div>
 <div id="qda" class="section level3">
 <h3>QDA</h3>
@@ -325,8 +361,20 @@ confusionMatrix(test_data$classe, predict(qda.fit, test_data))</code></pre>
 ## Detection Rate         0.2703   0.1575   0.1741   0.1382   0.1621
 ## Detection Prevalence   0.2839   0.1922   0.1844   0.1628   0.1767
 ## Balanced Accuracy      0.9647   0.9187   0.8840   0.9629   0.9726</code></pre>
-<p>Fitting a QDA model resulted in further 20% accuracy improvement, giving a total of 40% better accuracy than a classification tree. It is thus clear that QDA should be used to make predictions on the test data.</p>
+<p>Fitting a QDA model resulted in further 20% accuracy improvement and a roughly 25% increase in Kappa statistic, giving a total of 40% better accuracy and 50% higher Kappa statistic than a classification tree. For comparison purposes, it is better to look at Kappa statistic as it describes how closely the examples classified by a model match the <em>ground truth</em> data while controlling for the accuracy of a random classifier as measured by the <em>expected accuracy</em> (<a href="http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english" class="uri">http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english</a>). However, QDA did not improve over the random forest. Thus, for predicting exercise types random forest model will be used.</p>
 </div>
+</div>
+<div id="prediction" class="section level1">
+<h1>Prediction</h1>
+<p>Let’s now predict the cases for the “testing” dataset and evaluate the performance of the model by reporting the grade from the fial Quiz:</p>
+<pre class="r"><code>predict(forest.fit, testing)</code></pre>
+<pre><code>##  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 
+##  B  A  B  A  A  E  D  B  A  A  B  C  B  A  E  E  A  B  B  B 
+## Levels: A B C D E</code></pre>
+<p>This submission gained a 100% mark, meaning that the classifier was indeed very accurate on unseen data. What’s interesting is that the results of QDA prediction are identical to those of random forest:</p>
+<pre class="r"><code>mean(predict(forest.fit, test_data) == predict(qda.fit, test_data))</code></pre>
+<pre><code>## Loading required package: MASS</code></pre>
+<pre><code>## [1] 0.9038373</code></pre>
 </div>
 
 
