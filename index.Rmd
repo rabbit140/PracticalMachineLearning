@@ -103,13 +103,13 @@ test_data <- training[which(1:nrow(training) %in% train_rows == FALSE),]
 
 #Model selection
 Since there are
-```{r}
+```{r,cache=TRUE}
 p = ncol(train_data) - 1
 ```
 
 variables, it would be unreasonable to adopt the best subset selection approach, as we would have to choose the best combination out of
 
-```{r}
+```{r,cache=TRUE}
 2^p
 ```
 
@@ -137,20 +137,27 @@ Unfortunately, boosting could not be used due to computational limitations of th
 Let's try fitting LDA model:
 
 ```{r,cache=TRUE}
-lda.fit <- train(classe~., data = train_data, method = "lda")
+fitControl <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeated ten times
+                           repeats = 10)
+lda.fit <- train(classe~., data = train_data, method = "lda", trControl = fitControl)
 confusionMatrix(test_data$classe, predict(lda.fit, test_data))
+lda.fit
 ```
 
-The accuracy seems to have improved by over 20% and Kappa statistic raised by almost 30% in comparison to the classification tree.
+The accuracy seems to have improved by over 20% and Kappa statistic raised by almost 30% in comparison to the classification tree. Also, the cross validatio test error is almost identical to the error on validation data.
 
 ###QDA
 Now, fit a QDA model:
 ```{r,cache=TRUE}
-qda.fit <- train(classe~., data = train_data, method = "qda")
+qda.fit <- train(classe~., data = train_data, method = "qda", trControl = fitControl)
 confusionMatrix(test_data$classe, predict(qda.fit, test_data))
+qda.fit
 ```
 
-Fitting a QDA model resulted in further 20% accuracy improvement and a roughly 25% increase in Kappa statistic, giving a total of 40% better accuracy and 50% higher Kappa statistic than a classification tree. For comparison purposes, it is better to look at Kappa statistic as it describes how closely the examples classified by a model match the *ground truth* data while controlling for the accuracy of a random classifier as measured by the *expected accuracy* (http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english). However, QDA did not improve over the random forest. Thus, for predicting exercise types random forest model will be used.
+Fitting a QDA model resulted in further 20% accuracy improvement and a roughly 25% increase in Kappa statistic, giving a total of 40% better accuracy and 50% higher Kappa statistic than a classification tree. The cross-validation test error estimate is very close to validation data error. For comparison purposes, it is better to look at Kappa statistic as it describes how closely the examples classified by a model match the *ground truth* data while controlling for the accuracy of a random classifier as measured by the *expected accuracy* (http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english). However, QDA did not improve over the random forest. Thus, for predicting exercise types random forest model will be used.
 
 #Prediction
 Let's now predict the cases for the "testing" dataset and evaluate the performance of the model by reporting the grade from the fial Quiz:

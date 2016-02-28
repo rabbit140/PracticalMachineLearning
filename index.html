@@ -290,7 +290,12 @@ confusionMatrix(test_data$classe, predict(forest.fit, test_data))</code></pre>
 <div id="lda" class="section level3">
 <h3>LDA</h3>
 <p>Let’s try fitting LDA model:</p>
-<pre class="r"><code>lda.fit &lt;- train(classe~., data = train_data, method = &quot;lda&quot;)
+<pre class="r"><code>fitControl &lt;- trainControl(## 10-fold CV
+                           method = &quot;repeatedcv&quot;,
+                           number = 10,
+                           ## repeated ten times
+                           repeats = 10)
+lda.fit &lt;- train(classe~., data = train_data, method = &quot;lda&quot;, trControl = fitControl)
 confusionMatrix(test_data$classe, predict(lda.fit, test_data))</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
@@ -323,12 +328,28 @@ confusionMatrix(test_data$classe, predict(lda.fit, test_data))</code></pre>
 ## Detection Rate         0.2360   0.1223   0.1225   0.1197   0.1119
 ## Detection Prevalence   0.2839   0.1922   0.1844   0.1628   0.1767
 ## Balanced Accuracy      0.8608   0.7987   0.7717   0.7894   0.8766</code></pre>
-<p>The accuracy seems to have improved by over 20% and Kappa statistic raised by almost 30% in comparison to the classification tree.</p>
+<pre class="r"><code>lda.fit</code></pre>
+<pre><code>## Linear Discriminant Analysis 
+## 
+## 13081 samples
+##    53 predictors
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## No pre-processing
+## Resampling: Cross-Validated (10 fold, repeated 10 times) 
+## Summary of sample sizes: 11774, 11773, 11774, 11774, 11772, 11772, ... 
+## Resampling results
+## 
+##   Accuracy   Kappa      Accuracy SD  Kappa SD  
+##   0.7148697  0.6391889  0.0111291    0.01400001
+## 
+## </code></pre>
+<p>The accuracy seems to have improved by over 20% and Kappa statistic raised by almost 30% in comparison to the classification tree. Also, the cross validatio test error is almost identical to the error on validation data.</p>
 </div>
 <div id="qda" class="section level3">
 <h3>QDA</h3>
 <p>Now, fit a QDA model:</p>
-<pre class="r"><code>qda.fit &lt;- train(classe~., data = train_data, method = &quot;qda&quot;)
+<pre class="r"><code>qda.fit &lt;- train(classe~., data = train_data, method = &quot;qda&quot;, trControl = fitControl)
 confusionMatrix(test_data$classe, predict(qda.fit, test_data))</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
@@ -361,7 +382,23 @@ confusionMatrix(test_data$classe, predict(qda.fit, test_data))</code></pre>
 ## Detection Rate         0.2703   0.1575   0.1741   0.1382   0.1621
 ## Detection Prevalence   0.2839   0.1922   0.1844   0.1628   0.1767
 ## Balanced Accuracy      0.9647   0.9187   0.8840   0.9629   0.9726</code></pre>
-<p>Fitting a QDA model resulted in further 20% accuracy improvement and a roughly 25% increase in Kappa statistic, giving a total of 40% better accuracy and 50% higher Kappa statistic than a classification tree. For comparison purposes, it is better to look at Kappa statistic as it describes how closely the examples classified by a model match the <em>ground truth</em> data while controlling for the accuracy of a random classifier as measured by the <em>expected accuracy</em> (<a href="http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english" class="uri">http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english</a>). However, QDA did not improve over the random forest. Thus, for predicting exercise types random forest model will be used.</p>
+<pre class="r"><code>qda.fit</code></pre>
+<pre><code>## Quadratic Discriminant Analysis 
+## 
+## 13081 samples
+##    53 predictors
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## No pre-processing
+## Resampling: Cross-Validated (10 fold, repeated 10 times) 
+## Summary of sample sizes: 11774, 11773, 11772, 11774, 11773, 11773, ... 
+## Resampling results
+## 
+##   Accuracy   Kappa     Accuracy SD  Kappa SD  
+##   0.8988841  0.872128  0.008113425  0.01024024
+## 
+## </code></pre>
+<p>Fitting a QDA model resulted in further 20% accuracy improvement and a roughly 25% increase in Kappa statistic, giving a total of 40% better accuracy and 50% higher Kappa statistic than a classification tree. The cross-validation test error estimate is very close to validation data error. For comparison purposes, it is better to look at Kappa statistic as it describes how closely the examples classified by a model match the <em>ground truth</em> data while controlling for the accuracy of a random classifier as measured by the <em>expected accuracy</em> (<a href="http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english" class="uri">http://stats.stackexchange.com/questions/82162/kappa-statistic-in-plain-english</a>). However, QDA did not improve over the random forest. Thus, for predicting exercise types random forest model will be used.</p>
 </div>
 </div>
 <div id="prediction" class="section level1">
