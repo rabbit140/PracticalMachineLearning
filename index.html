@@ -120,6 +120,10 @@ $(document).ready(function () {
 <h1>Introduction</h1>
 <p>The aim of this project is to predict (<em>classify</em>) the manner in which subjects of <a href="http://groupware.les.inf.puc-rio.br/har">a study</a> exercised. To accomplish this, a model selection procedure was utilised and the best model was selected according to its accuracy.</p>
 </div>
+<div id="background" class="section level1">
+<h1>Background</h1>
+<p>Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website <a href="http://groupware.les.inf.puc-rio.br/har">here</a> (see the section on the Weight Lifting Exercise Dataset).</p>
+</div>
 <div id="analysis" class="section level1">
 <h1>Analysis</h1>
 <div id="data-cleaning" class="section level2">
@@ -174,6 +178,19 @@ sum((sapply(testing[,col_names], prop.empty) &gt; 0))</code></pre>
 training &lt;- training[,-c(1:5)]
 testing &lt;- testing[,-c(1:5)]</code></pre>
 </div>
+<div id="splitting-the-data" class="section level2">
+<h2>Splitting the data</h2>
+<p>Now, all the data is ready to be split into training and validation sets. To ensure reproducibility, the seed was set to 1:</p>
+<pre class="r"><code>#Split data into train and test sets
+set.seed(1)
+train_rows &lt;- sample(1:nrow(training), size = 2/3*nrow(training))
+train_data &lt;- training[train_rows,]
+test_data &lt;- training[which(1:nrow(training) %in% train_rows == FALSE),]</code></pre>
+<p>Now, let’s proceed to model and variable selection.</p>
+</div>
+</div>
+<div id="exploratory-data-analysis" class="section level1">
+<h1>Exploratory data analysis</h1>
 </div>
 
 
