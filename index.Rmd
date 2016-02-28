@@ -13,7 +13,7 @@ Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible t
 
 #Analysis
 
-##Data cleaning
+###Data cleaning
 Since both datasets contained many redundant columns containing little to no information (either "NA" vlaues or empty cells), these were removed to make the analysis and model fitting easier.
 
 ```{r, cache=TRUE}
@@ -73,7 +73,19 @@ training <- training[,-c(1:5)]
 testing <- testing[,-c(1:5)]
 ```
 
-##Splitting the data
+###Variable selection and splitting the data
+
+Let's now remove any near-zero variance predictors:
+```{r}
+library(caret)
+nearZeroVar(training)
+nearZeroVar(testing)
+training <- training[,-nearZeroVar(training)]
+testing <- testing[,-nearZeroVar(testing)]
+```
+
+The first column in both datasets was identified as being a near-zero variance predictor, which, even purely by visual inspection, looks correct. Therefore, it was removed and the remaining predictors were used.
+
 Now, all the data is ready to be split into training and validation sets. To ensure reproducibility, the seed was set to 1:
 ```{r}
 #Split data into train and test sets
@@ -83,7 +95,49 @@ train_data <- training[train_rows,]
 test_data <- training[which(1:nrow(training) %in% train_rows == FALSE),]
 ```
 
-Now, let's proceed to model and variable selection.
+#Model selection
+Since there are
+```{r}
+p = ncol(train_data) - 1
+```
 
-#Exploratory data analysis
-It would be 
+variables, it would be unreasonable to adopt the best subset selection approach, as we would have to choose the best combination out of
+
+```{r}
+2^p
+```
+
+total combinations, which would be extremely expensive computationally, depending on the type of model fitted. Forward or backward stepwise selection could be considered less computationally expensive, although, with this number of variables, it would still take a long time to find the best model. Moreover, the "stepAIC" function is not compatible with models trained using the "caret" package and there are very limited options within the package to perform variable selection. Any regression method, such as ridge or lasso, cannot be applied since the task is to classify discrete values (classes A to E) and not continuous ones. Thus, we are left with classification trees (with bagging and boosting), random forest, or with LDA/QDA. Let's select the type of model trained on all available variables and choose the best one based on overall accuracy.
+
+###Classification tree
+```{r,cache=TRUE}
+library(rattle)
+class.tree <- train(classe~., data = train_data, method = "rpart")
+confusionMatrix(test_data$classe, predict(class.tree, test_data))
+```
+
+###Random forest
+The model fitting command was run, but after 30 minutes of fitting the random forest, it was halted by the user as itwas concluded that fitting it was too demanding for an i3-4010U mobile CPU.
+The overall accuracy is quite low (~50%), let's try fitting a random forest:
+
+###Boosting
+Unfortunately, boosting could not be used due to computational limitations of the CPU, and after half an hour the execution of code was stopped.
+
+###LDA
+Let's try fitting LDA model:
+
+```{r,cache=TRUE}
+lda.fit <- train(classe~., data = train_data, method = "lda")
+confusionMatrix(test_data$classe, predict(lda.fit, test_data))
+```
+
+The accuracy seems to have improved by over 20% in comparison to classification tree.
+
+###QDA
+Now, fit a QDA model:
+```{r,cache=TRUE}
+qda.fit <- train(classe~., data = train_data, method = "qda")
+confusionMatrix(test_data$classe, predict(qda.fit, test_data))
+```
+
+Fitting a QDA model resulted in further 20% accuracy improvement, giving a total of 40% better accuracy than a classification tree. It is thus clear that QDA should be used to make predictions on the test data.

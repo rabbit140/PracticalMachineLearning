@@ -126,8 +126,8 @@ $(document).ready(function () {
 </div>
 <div id="analysis" class="section level1">
 <h1>Analysis</h1>
-<div id="data-cleaning" class="section level2">
-<h2>Data cleaning</h2>
+<div id="data-cleaning" class="section level3">
+<h3>Data cleaning</h3>
 <p>Since both datasets contained many redundant columns containing little to no information (either “NA” vlaues or empty cells), these were removed to make the analysis and model fitting easier.</p>
 <pre class="r"><code>#Load the data
 training &lt;- read.csv(&quot;pml-training.csv&quot;)
@@ -178,19 +178,155 @@ sum((sapply(testing[,col_names], prop.empty) &gt; 0))</code></pre>
 training &lt;- training[,-c(1:5)]
 testing &lt;- testing[,-c(1:5)]</code></pre>
 </div>
-<div id="splitting-the-data" class="section level2">
-<h2>Splitting the data</h2>
+<div id="variable-selection-and-splitting-the-data" class="section level3">
+<h3>Variable selection and splitting the data</h3>
+<p>Let’s now remove any near-zero variance predictors:</p>
+<pre class="r"><code>library(caret)</code></pre>
+<pre><code>## Loading required package: lattice</code></pre>
+<pre><code>## Loading required package: ggplot2</code></pre>
+<pre class="r"><code>nearZeroVar(training)</code></pre>
+<pre><code>## [1] 1</code></pre>
+<pre class="r"><code>nearZeroVar(testing)</code></pre>
+<pre><code>## [1] 1</code></pre>
+<pre class="r"><code>training &lt;- training[,-nearZeroVar(training)]
+testing &lt;- testing[,-nearZeroVar(testing)]</code></pre>
 <p>Now, all the data is ready to be split into training and validation sets. To ensure reproducibility, the seed was set to 1:</p>
 <pre class="r"><code>#Split data into train and test sets
 set.seed(1)
 train_rows &lt;- sample(1:nrow(training), size = 2/3*nrow(training))
 train_data &lt;- training[train_rows,]
 test_data &lt;- training[which(1:nrow(training) %in% train_rows == FALSE),]</code></pre>
-<p>Now, let’s proceed to model and variable selection.</p>
 </div>
 </div>
-<div id="exploratory-data-analysis" class="section level1">
-<h1>Exploratory data analysis</h1>
+<div id="model-selection" class="section level1">
+<h1>Model selection</h1>
+<p>Since there are</p>
+<pre class="r"><code>p = ncol(train_data) - 1</code></pre>
+<p>variables, it would be unreasonable to adopt the best subset selection approach, as we would have to choose the best combination out of</p>
+<pre class="r"><code>2^p</code></pre>
+<pre><code>## [1] 9.007199e+15</code></pre>
+<p>total combinations, which would be extremely expensive computationally, depending on the type of model fitted. Forward or backward stepwise selection could be considered less computationally expensive, although, with this number of variables, it would still take a long time to find the best model. Moreover, the “stepAIC” function is not compatible with models trained using the “caret” package and there are very limited options within the package to perform variable selection. Any regression method, such as ridge or lasso, cannot be applied since the task is to classify discrete values (classes A to E) and not continuous ones. Thus, we are left with classification trees (with bagging and boosting), random forest, or with LDA/QDA. Let’s select the type of model trained on all available variables and choose the best one based on overall accuracy.</p>
+<div id="classification-tree" class="section level3">
+<h3>Classification tree</h3>
+<pre class="r"><code>library(rattle)
+class.tree &lt;- train(classe~., data = train_data, method = &quot;rpart&quot;)
+confusionMatrix(test_data$classe, predict(class.tree, test_data))</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1681   30  140    0    6
+##          B  525  421  311    0    0
+##          C  553   43  610    0    0
+##          D  434  189  379    0   63
+##          E  122   99  236    0  699
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.5215          
+##                  95% CI : (0.5093, 0.5337)
+##     No Information Rate : 0.5068          
+##     P-Value [Acc &gt; NIR] : 0.009082        
+##                                           
+##                   Kappa : 0.3746          
+##  Mcnemar's Test P-Value : &lt; 2.2e-16       
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.5071  0.53836  0.36396       NA   0.9102
+## Specificity            0.9454  0.85484  0.87749   0.8372   0.9208
+## Pos Pred Value         0.9052  0.33492  0.50580       NA   0.6047
+## Neg Pred Value         0.6512  0.93168  0.80019       NA   0.9872
+## Prevalence             0.5068  0.11955  0.25623   0.0000   0.1174
+## Detection Rate         0.2570  0.06436  0.09326   0.0000   0.1069
+## Detection Prevalence   0.2839  0.19217  0.18438   0.1628   0.1767
+## Balanced Accuracy      0.7263  0.69660  0.62073       NA   0.9155</code></pre>
+</div>
+<div id="random-forest" class="section level3">
+<h3>Random forest</h3>
+<p>The model fitting command was run, but after 30 minutes of fitting the random forest, it was halted by the user as itwas concluded that fitting it was too demanding for an i3-4010U mobile CPU. The overall accuracy is quite low (~50%), let’s try fitting a random forest:</p>
+</div>
+<div id="boosting" class="section level3">
+<h3>Boosting</h3>
+<p>Unfortunately, boosting could not be used due to computational limitations of the CPU, and after half an hour the execution of code was stopped.</p>
+</div>
+<div id="lda" class="section level3">
+<h3>LDA</h3>
+<p>Let’s try fitting LDA model:</p>
+<pre class="r"><code>lda.fit &lt;- train(classe~., data = train_data, method = &quot;lda&quot;)
+confusionMatrix(test_data$classe, predict(lda.fit, test_data))</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1544   64  109  127   13
+##          B  171  800  171   53   62
+##          C  125   89  801  153   38
+##          D   65   54  124  783   39
+##          E   50  165   86  123  732
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.7124          
+##                  95% CI : (0.7013, 0.7234)
+##     No Information Rate : 0.2989          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.6358          
+##  Mcnemar's Test P-Value : &lt; 2.2e-16       
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.7898   0.6826   0.6204   0.6320   0.8281
+## Specificity            0.9317   0.9149   0.9229   0.9468   0.9250
+## Pos Pred Value         0.8314   0.6364   0.6642   0.7352   0.6332
+## Neg Pred Value         0.9123   0.9296   0.9082   0.9167   0.9718
+## Prevalence             0.2989   0.1792   0.1974   0.1894   0.1351
+## Detection Rate         0.2360   0.1223   0.1225   0.1197   0.1119
+## Detection Prevalence   0.2839   0.1922   0.1844   0.1628   0.1767
+## Balanced Accuracy      0.8608   0.7987   0.7717   0.7894   0.8766</code></pre>
+<p>The accuracy seems to have improved by over 20% in comparison to classification tree.</p>
+</div>
+<div id="qda" class="section level3">
+<h3>QDA</h3>
+<p>Now, fit a QDA model:</p>
+<pre class="r"><code>qda.fit &lt;- train(classe~., data = train_data, method = &quot;qda&quot;)
+confusionMatrix(test_data$classe, predict(qda.fit, test_data))</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1768   56   18    7    8
+##          B   90 1030  126    4    7
+##          C    2   53 1139    4    8
+##          D    4    4  135  904   18
+##          E    0   28   40   28 1060
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9022          
+##                  95% CI : (0.8947, 0.9093)
+##     No Information Rate : 0.285           
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.8762          
+##  Mcnemar's Test P-Value : &lt; 2.2e-16       
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9485   0.8796   0.7812   0.9546   0.9628
+## Specificity            0.9810   0.9577   0.9868   0.9712   0.9824
+## Pos Pred Value         0.9521   0.8194   0.9444   0.8488   0.9170
+## Neg Pred Value         0.9795   0.9733   0.9402   0.9921   0.9924
+## Prevalence             0.2850   0.1790   0.2229   0.1448   0.1683
+## Detection Rate         0.2703   0.1575   0.1741   0.1382   0.1621
+## Detection Prevalence   0.2839   0.1922   0.1844   0.1628   0.1767
+## Balanced Accuracy      0.9647   0.9187   0.8840   0.9629   0.9726</code></pre>
+<p>Fitting a QDA model resulted in further 20% accuracy improvement, giving a total of 40% better accuracy than a classification tree. It is thus clear that QDA should be used to make predictions on the test data.</p>
+</div>
 </div>
 
 
